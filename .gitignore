@@ -1,0 +1,46 @@
+# Byte-compiled / optimized
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Data artifacts (point-in-time store, caches, downloads)
+# Anchored to repo root so the src/quantlab/data package is NOT ignored.
+/data/
+*.parquet
+*.feather
+*.csv
+*.h5
+
+# Generated reports
+reports/output/
+*.pdf
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Environment secrets
+.env

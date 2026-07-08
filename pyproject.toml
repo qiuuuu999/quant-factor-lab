@@ -1,0 +1,40 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quant-factor-lab"
+version = "0.1.0"
+description = "Industrial-grade quantitative research platform: data -> factors -> backtest -> risk -> portfolio -> monitor -> reports."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Ryan Qiu", email = "ryanqiuuuu@gmail.com" }]
+keywords = ["quant", "factor", "backtest", "portfolio", "risk", "research"]
+
+dependencies = [
+    "pandas",
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "yfinance",
+    "pyarrow",
+    "pydantic",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --cov=quantlab --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["quantlab"]
+branch = true
