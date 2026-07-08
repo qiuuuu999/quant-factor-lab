@@ -23,6 +23,11 @@ from quantlab.data.prices import (
     get_prices,
     universe_symbols,
 )
+from quantlab.data.aliases import (
+    AliasResolver,
+    infer_renames_from_changes,
+    load_alias_resolver,
+)
 
 __all__ = [
     "Constituent",
@@ -37,4 +42,7 @@ __all__ = [
     "download_prices",
     "get_prices",
     "universe_symbols",
+    "AliasResolver",
+    "load_alias_resolver",
+    "infer_renames_from_changes",
 ]

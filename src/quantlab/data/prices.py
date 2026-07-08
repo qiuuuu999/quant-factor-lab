@@ -32,6 +32,7 @@ from typing import Callable, Iterable, Sequence
 import pandas as pd
 from pydantic import BaseModel, Field
 
+from quantlab.data.aliases import AliasResolver, load_alias_resolver
 from quantlab.data.universe import _repo_root, load_universe, normalize_ticker
 
 __all__ = [
@@ -96,11 +97,20 @@ class QualityReport(BaseModel):
     downloaded: int
     failed: list[str] = Field(default_factory=list)
     per_ticker: list[TickerQuality] = Field(default_factory=list)
+    #: Subset of `failed` known to be genuinely delisted (no current symbol) —
+    #: expected to be missing from a free data source, not a fixable gap.
+    expected_missing: list[str] = Field(default_factory=list)
 
     @property
     def missing_rate(self) -> float:
         """Fraction of requested tickers that returned no data."""
         return len(self.failed) / self.requested if self.requested else 0.0
+
+    @property
+    def unexpected_missing(self) -> list[str]:
+        """Failed tickers that are *not* known delistings — worth investigating."""
+        known = set(self.expected_missing)
+        return [t for t in self.failed if t not in known]
 
     def flagged(self) -> list[TickerQuality]:
         """Downloaded tickers with quality issues worth reviewing."""
@@ -135,12 +145,15 @@ class QualityReport(BaseModel):
             f"Downloaded        : {self.downloaded}",
             f"Failed (no data)  : {len(self.failed)}  "
             f"({self.missing_rate:.1%} missing rate)",
+            f"  delisted (expected)  : {len(self.expected_missing)}",
+            f"  unexpected missing   : {len(self.unexpected_missing)}",
             f"Flagged for review: {len(flagged)}",
         ]
-        if self.failed:
-            shown = ", ".join(sorted(self.failed)[:20])
-            more = "" if len(self.failed) <= 20 else f" ... (+{len(self.failed) - 20})"
-            lines.append(f"  missing: {shown}{more}")
+        if self.unexpected_missing:
+            shown = ", ".join(sorted(self.unexpected_missing)[:20])
+            more = ("" if len(self.unexpected_missing) <= 20
+                    else f" ... (+{len(self.unexpected_missing) - 20})")
+            lines.append(f"  unexpected: {shown}{more}")
         if flagged:
             lines.append("  quality issues:")
             for q in flagged[:20]:
@@ -297,25 +310,35 @@ def download_prices(
     jump_threshold: float = DEFAULT_JUMP_THRESHOLD,
     auto_adjust: bool = False,
     fetcher: Callable[..., pd.DataFrame] | None = None,
+    resolver: AliasResolver | None = None,
 ) -> QualityReport:
     """Batch-download daily prices for ``tickers`` into the Parquet store.
+
+    Each requested symbol is resolved to its **current** symbol via
+    ``resolver`` before fetching (Yahoo only serves history under the current
+    symbol), and stored under that current symbol. A requested symbol is
+    considered *downloaded* if its current symbol returned data — so a
+    historical alias like ``FB`` counts as covered once ``META`` is fetched.
 
     Failed tickers (no data — typically delisted) are logged and reported, not
     raised. Returns a :class:`QualityReport` covering the whole run.
     """
     price_dir = Path(price_dir or default_price_dir())
     fetch = fetcher or _fetch_yf
+    resolver = resolver or load_alias_resolver()
 
-    # De-dup while normalizing to yfinance symbology (BRK.B -> BRK-B).
+    # De-dup requested symbols (normalized), then map each to its current symbol.
     norm = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
     requested = len(norm)
-    log.info("Downloading %d tickers from %s to %s", requested, start, end)
+    canon_of = {t: normalize_ticker(resolver.to_current(t)) for t in norm}
+    canon_list = list(dict.fromkeys(canon_of.values()))
+    log.info("Downloading %d requested (%d unique current symbols) from %s to %s",
+             requested, len(canon_list), start, end)
 
-    failed: list[str] = []
+    got: set[str] = set()
     per_ticker: list[TickerQuality] = []
-    downloaded = 0
 
-    for bi, batch in enumerate(_batches(norm, batch_size), 1):
+    for bi, batch in enumerate(_batches(canon_list, batch_size), 1):
         raw: pd.DataFrame | None = None
         for attempt in range(1, max_retries + 1):
             try:
@@ -329,28 +352,37 @@ def download_prices(
                 if attempt < max_retries:
                     time.sleep(pause * attempt)  # linear backoff
         if raw is None:
-            log.error("batch %d permanently failed; marking %d tickers missing",
+            log.error("batch %d permanently failed; %d symbols unavailable",
                       bi, len(batch))
-            failed.extend(batch)
             continue
 
         for t in batch:
             sub = _extract_ticker(raw, t)
             if sub is None:
                 log.info("no data for %s (likely delisted / unavailable)", t)
-                failed.append(t)
                 continue
             _write_ticker(sub, t, price_dir)
             per_ticker.append(validate_ticker(sub, t, jump_threshold))
-            downloaded += 1
+            got.add(t)
 
-        if bi * batch_size < requested:
+        if bi * batch_size < len(canon_list):
             time.sleep(pause)  # be polite between batches
 
+    failed = [t for t in norm if canon_of[t] not in got]
+    expected_missing = [
+        t for t in failed
+        if resolver.is_delisted(t) or resolver.is_delisted(canon_of[t])
+    ]
+    downloaded = requested - len(failed)
+
     report = QualityReport(
-        requested=requested, downloaded=downloaded, failed=failed, per_ticker=per_ticker
+        requested=requested,
+        downloaded=downloaded,
+        failed=failed,
+        per_ticker=per_ticker,
+        expected_missing=expected_missing,
     )
-    log.info("Done: %d/%d downloaded, %.1f%% missing",
+    log.info("Done: %d/%d covered, %.1f%% missing",
              downloaded, requested, report.missing_rate * 100)
     return report
 
@@ -370,13 +402,19 @@ def get_prices(
     *,
     field: str | None = None,
     price_dir: Path | None = None,
+    resolver: AliasResolver | None = None,
 ) -> pd.DataFrame:
     """Read prices back from the store.
 
     Parameters
     ----------
     tickers:
-        One ticker or an iterable of tickers (normalized to store symbology).
+        One ticker or an iterable of tickers. Each is resolved through
+        ``resolver`` to its current symbol to locate the stored file, so both
+        historical and current aliases work (``get_prices("FB")`` and
+        ``get_prices("META")`` return the same underlying series). Rows are
+        labelled with the *requested* symbol so callers that key off the
+        historical ticker (e.g. a point-in-time universe) line up.
     start, end:
         Optional inclusive date bounds.
     field:
@@ -387,19 +425,24 @@ def get_prices(
     Missing tickers (no file in the store) are skipped with a warning.
     """
     price_dir = Path(price_dir or default_price_dir())
+    resolver = resolver or load_alias_resolver()
     if isinstance(tickers, str):
         tickers = [tickers]
-    norm = [normalize_ticker(t) for t in tickers]
+    # Preserve requested order, de-dup requested labels.
+    labels = list(dict.fromkeys(normalize_ticker(t) for t in tickers))
 
     lo, hi = _coerce_ts(start), _coerce_ts(end)
     frames: list[pd.DataFrame] = []
-    for t in norm:
-        path = price_dir / f"{t}.parquet"
+    for label in labels:
+        canon = normalize_ticker(resolver.to_current(label))
+        path = price_dir / f"{canon}.parquet"
         if not path.exists():
-            log.warning("no price file for %s; skipping", t)
+            log.warning("no price file for %s (current symbol %s); skipping",
+                        label, canon)
             continue
         d = pd.read_parquet(path)
         d["date"] = pd.to_datetime(d["date"])
+        d["ticker"] = label  # relabel to the requested (historical) symbol
         if lo is not None:
             d = d[d["date"] >= lo]
         if hi is not None:

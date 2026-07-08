@@ -93,6 +93,14 @@ store of daily **OHLCV + adjusted close**.
   dropped), producing a `QualityReport` with an explicit **missing rate**.
 - **Uniform read API**: `get_prices()` returns either a tidy long frame or a
   wide field panel for any subset of tickers/dates.
+- **Ticker-rename resolution** (`quantlab.data.aliases`): companies that changed
+  symbol while staying listed (`FB→META`, `ANTM→ELV`, `CTL→LUMN`, …) are mapped
+  to their *current* symbol for download (Yahoo only serves history there) while
+  historical symbols still resolve on read — `get_prices("FB")` and
+  `get_prices("META")` return the same series. Renames are auto-inferred from
+  the change log where possible and otherwise maintained in
+  `configs/ticker_renames.yaml`, which also lists genuinely delisted names so
+  the quality report separates *expected* misses from ones worth investigating.
 
 ```python
 from quantlab.data import universe_symbols, download_prices, get_prices

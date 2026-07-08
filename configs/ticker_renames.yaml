@@ -1,0 +1,57 @@
+# Ticker rename / alias map for the S&P 500 universe.
+#
+# `renames` records companies that stayed publicly listed but changed their
+# ticker symbol. Prices must be *downloaded* under the current symbol (Yahoo
+# only serves history there) while *queries* under the historical symbol must
+# still resolve. Chains are followed transitively (e.g. VIAB -> VIAC -> PARA).
+#
+# `delisted` records companies that left the index with NO surviving symbol
+# (acquisitions, take-privates, bankruptcies). They are expected to be missing
+# from a free data source; listing them here lets the quality report label them
+# as "expected missing" rather than fixable.
+#
+# Some renames are auto-inferred from the Wikipedia change log (same company
+# name added under a new ticker the same day it was removed under the old one);
+# those need not be listed here. This file covers the cases inference misses.
+
+renames:
+  - {old: FB,    new: META, date: 2022-06-09, note: "Facebook -> Meta Platforms"}
+  - {old: ANTM,  new: ELV,  date: 2022-06-28, note: "Anthem -> Elevance Health"}
+  - {old: VIAC,  new: PARA, date: 2022-02-16, note: "ViacomCBS -> Paramount Global"}
+  - {old: VIAB,  new: VIAC, date: 2019-12-05, note: "Viacom (Class B) -> ViacomCBS"}
+  - {old: PARA,  new: PSKY, date: 2025-08-07, note: "Paramount Global -> Paramount Skydance (pre-merger history not on Yahoo under PSKY)"}
+  - {old: DISCA, new: WBD,  date: 2022-04-11, note: "Discovery Class A -> Warner Bros. Discovery"}
+  - {old: DISCK, new: WBD,  date: 2022-04-11, note: "Discovery Class C -> Warner Bros. Discovery"}
+  - {old: FBHS,  new: FBIN, date: 2022-12-12, note: "Fortune Brands Home & Security -> Fortune Brands Innovations"}
+  - {old: WLTW,  new: WTW,  date: 2022-01-07, note: "Willis Towers Watson ticker change"}
+  - {old: CTL,   new: LUMN, date: 2020-09-18, note: "CenturyLink -> Lumen Technologies"}
+  - {old: PCLN,  new: BKNG, date: 2018-02-27, note: "Priceline Group -> Booking Holdings"}
+  - {old: UTX,   new: RTX,  date: 2020-04-03, note: "United Technologies -> Raytheon Technologies"}
+  - {old: HRS,   new: LHX,  date: 2019-06-19, note: "Harris -> L3Harris Technologies"}
+  - {old: BBT,   new: TFC,  date: 2019-12-09, note: "BB&T -> Truist Financial"}
+  - {old: HFC,   new: DINO, date: 2022-03-14, note: "HollyFrontier -> HF Sinclair"}
+  - {old: MYL,   new: VTRS, date: 2020-11-16, note: "Mylan -> Viatris"}
+  - {old: COG,   new: CTRA, date: 2021-10-01, note: "Cabot Oil & Gas -> Coterra Energy"}
+  - {old: KORS,  new: CPRI, date: 2019-01-02, note: "Michael Kors -> Capri Holdings"}
+  - {old: LB,    new: BBWI, date: 2021-08-03, note: "L Brands -> Bath & Body Works"}
+  - {old: HCN,   new: WELL, date: 2018-02-28, note: "Health Care REIT -> Welltower"}
+  - {old: GPS,   new: GAP,  date: 2024-08-22, note: "Gap Inc. ticker change"}
+  - {old: RTN,   new: RTX,  date: 2020-04-03, note: "Raytheon -> merged into Raytheon Technologies"}
+
+delisted:
+  - {ticker: TWTR, date: 2022-10-27, note: "Twitter taken private (Musk)"}
+  - {ticker: XLNX, date: 2022-02-14, note: "Xilinx acquired by AMD"}
+  - {ticker: ATVI, date: 2023-10-13, note: "Activision Blizzard acquired by Microsoft"}
+  - {ticker: ALXN, date: 2021-07-21, note: "Alexion acquired by AstraZeneca"}
+  - {ticker: ABMD, date: 2022-12-22, note: "Abiomed acquired by Johnson & Johnson"}
+  - {ticker: ANSS, date: 2025-07-17, note: "Ansys acquired by Synopsys"}
+  - {ticker: CERN, date: 2022-06-08, note: "Cerner acquired by Oracle"}
+  - {ticker: CTXS, date: 2022-09-30, note: "Citrix taken private"}
+  - {ticker: INFO, date: 2022-02-28, note: "IHS Markit merged into S&P Global"}
+  - {ticker: KSU,  date: 2021-12-14, note: "Kansas City Southern acquired by CP"}
+  - {ticker: MXIM, date: 2021-08-26, note: "Maxim Integrated acquired by Analog Devices"}
+  - {ticker: PXD,  date: 2024-05-03, note: "Pioneer Natural Resources acquired by ExxonMobil"}
+  - {ticker: TIF,  date: 2021-01-07, note: "Tiffany & Co. acquired by LVMH"}
+  - {ticker: NLSN, date: 2022-10-11, note: "Nielsen taken private"}
+  - {ticker: FRC,  date: 2023-05-01, note: "First Republic Bank failed / seized"}
+  - {ticker: SIVB, date: 2023-03-10, note: "SVB Financial failed"}
