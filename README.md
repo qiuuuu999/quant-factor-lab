@@ -52,6 +52,74 @@ Success criteria:
 - Live factor-decay and regime monitoring with automated alerting.
 - Automated, reproducible report generation.
 
+## Data Pipeline
+
+The `quantlab.data` package is the survivorship-bias-free foundation for
+everything downstream. It has two layers.
+
+### 1. Point-in-time universe (`quantlab.data.universe`)
+
+Most equity backtests silently use *today's* index membership for *past* dates,
+so stocks that were later dropped (often the losers) vanish from history and
+inflate returns. This module reconstructs membership *as it actually was*.
+
+- Scrapes two tables from the Wikipedia article *"List of S&P 500 companies"*:
+  the **current constituents** and the **selected changes** log (every
+  addition/removal with an effective date).
+- `get_universe(as_of_date)` walks the change log backwards from the current
+  snapshot, undoing every change effective after `as_of_date`, to return the
+  tickers that were truly in the index on that date.
+- Known **ticker renames** (e.g. `FB → META` on 2022-06-09) are resolved both
+  when returning the period-correct symbol *and* when matching change-log
+  entries during reconstruction.
+- Results are cached to Parquet under `data/` (git-ignored) with a staleness
+  window; a stale cache is used as a fallback if a refresh fails.
+
+```python
+from quantlab.data import get_universe
+get_universe("2015-06-30")          # ~507 tickers as of mid-2015 (Meta appears as "FB")
+```
+
+### 2. Price data pipeline (`quantlab.data.prices`)
+
+Turns a (survivorship-bias-free) ticker set into a validated, per-ticker Parquet
+store of daily **OHLCV + adjusted close**.
+
+- **Batched yfinance downloads** with retry + linear backoff and a polite
+  inter-batch pause. A ticker yfinance cannot serve (typically *delisted*) is
+  logged and counted, never fatal.
+- **Data-quality gate**: detects missing closes, zero-volume sessions, and
+  implausible single-day jumps (>50% by default, *flagged for review* — not
+  dropped), producing a `QualityReport` with an explicit **missing rate**.
+- **Uniform read API**: `get_prices()` returns either a tidy long frame or a
+  wide field panel for any subset of tickers/dates.
+
+```python
+from quantlab.data import universe_symbols, download_prices, get_prices
+
+tickers = universe_symbols("2020-01-01", "2025-12-31")   # union incl. delisted
+report = download_prices(tickers, "2020-01-01", "2025-12-31")
+print(report.summary())                                  # missing rate + flags
+px = get_prices(["AAPL", "MSFT"], field="adj_close")     # wide panel
+```
+
+### Known limitations
+
+The universe is honest about where it is *approximate*:
+
+- **Change-log completeness.** Wikipedia's changes table is *"selected"* and
+  gets sparser the further back you go, so reconstructed counts drift by a
+  handful of names before ~2012 (recent years are accurate).
+- **Dual-class ticker counts.** Companies with two share classes (`GOOGL/GOOG`,
+  `FOX/FOXA`, `NWS/NWSA`) mean the *ticker* count sits slightly above 500 even
+  though there are 500 *companies*.
+- **Residual survivorship bias from missing prices.** A point-in-time universe
+  correctly *includes* delisted names, but yfinance often has **no price
+  history** for them (bankruptcies, buyouts). Those tickers show up in the
+  download report's missing rate — so the bias is *surfaced and measured*
+  rather than hidden, but it is not fully eliminated with a free data source. A
+  licensed constituents/price dataset (e.g. CRSP) would close the remaining gap.
+
 ## Project structure
 
 ```
@@ -86,7 +154,7 @@ pytest
 
 ## Tech stack
 
-pandas · numpy · scipy · matplotlib · yfinance · pyarrow · pydantic · pytest · pytest-cov
+pandas · numpy · scipy · matplotlib · yfinance · pyarrow · pydantic · requests · beautifulsoup4 · pytest · pytest-cov
 
 ## License
 
