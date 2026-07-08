@@ -20,6 +20,8 @@ dependencies = [
     "yfinance",
     "pyarrow",
     "pydantic",
+    "requests",
+    "beautifulsoup4",
 ]
 
 [project.optional-dependencies]
