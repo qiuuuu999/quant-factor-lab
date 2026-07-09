@@ -51,12 +51,28 @@ def classify_regime(
     vol_window: int = 21,
     trend_window: int = 200,
     annualize: int = _TRADING_DAYS,
+    expanding: bool = False,
 ) -> pd.Series:
     """Classify each trading day into one of :data:`REGIMES` from a price series.
 
     ``prices`` is a benchmark (e.g. SPY) close/adj-close series indexed by
     date. Days without a full ``vol_window`` / ``trend_window`` lookback are
     dropped rather than guessed at.
+
+    ``expanding`` controls how the volatility level is split into low/high:
+
+    * ``False`` (default) — the **full-sample** median, i.e. every day's label
+      is relative to the whole series' own history including days *after* it.
+      This is what a retrospective health report wants (see
+      ``quantlab.monitor``'s module docstring): "was this a calm or turbulent
+      day, viewed with the full benefit of hindsight."
+    * ``True`` — an **expanding** median, using only observations up to and
+      including that day. Each day's label then depends only on data known by
+      that day, which is the point-in-time-safe mode required whenever the
+      label feeds a live trading decision (e.g.
+      ``quantlab.portfolio.regime_adaptive``) rather than a backward-looking
+      report — using the full-sample median there would leak future
+      volatility information into today's regime call.
     """
     px = prices.dropna().sort_index()
     ret = px.pct_change()
@@ -64,7 +80,8 @@ def classify_regime(
     trend_ma = px.rolling(trend_window).mean()
 
     valid = vol.notna() & trend_ma.notna()
-    is_high_vol = vol > vol.median()
+    threshold = vol.expanding().median() if expanding else vol.median()
+    is_high_vol = vol > threshold
     is_up = px > trend_ma
 
     label = pd.Series(np.where(
