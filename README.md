@@ -45,8 +45,47 @@ Success criteria:
 - Cross-sectional momentum factor reproduces the expected long/short spread and
   monotonic decile ordering documented in the literature.
 
-### Beyond Milestone 1
+### Milestone 4 — A factor library and evaluation framework
 
+Expand from one factor to a small **library of pure-price factors**, each in its
+own file with a literature citation, and build the **evaluation harness** that
+decides whether a signal is worth trading *before* a full backtest:
+
+- **Factors** (`quantlab.factors`): 12-1 momentum (Jegadeesh & Titman 1993),
+  low volatility (Ang et al. 2006), short-term reversal (Jegadeesh 1990), and
+  Amihud illiquidity (Amihud 2002).
+- **Evaluation** (`quantlab.factors.evaluation`): IC / ICIR time series, decile
+  long/short and monotonicity, rank-autocorrelation (turnover), and cross-factor
+  correlation — all point-in-time and rank-based. See `docs/factors.md`.
+- **Report**: `scripts/run_factor_evaluation.py` scores all four factors over
+  2015-2025 into `reports/factor_eval/` (IC plots, decile bars, correlation
+  heatmap, summary table).
+
+Honest finding: across large-cap US 2015-2025 these classic factors were
+weak-to-negative (insignificant ICs, negative decile spreads) — a regime that
+also saw long-only momentum trail SPY. The harness surfaces that verdict rather
+than hiding it.
+
+#### Why no fundamental factors yet
+
+The library is deliberately **price-only** for now. A value or quality factor
+needs **point-in-time fundamentals** — the financials *as they were first
+reported*, before restatements — tagged with each filing's actual availability
+date. Free sources (yfinance, and most scraped feeds) only expose the *latest,
+restated* statements with no as-of dating, so joining them to a historical date
+back-fills information that was not yet public — a **look-ahead bias** that
+silently inflates every backtested value/quality result. Rather than ship a
+factor whose headline number is a data artifact, we keep the library to signals
+we can compute honestly from point-in-time prices, and gate fundamentals behind a
+properly PIT-dated financials source (e.g. Compustat Point-in-Time / S&P Capital
+IQ, or SEC EDGAR filings indexed by acceptance datetime). This mirrors the
+platform's survivorship-bias stance in the data layer: measure and surface the
+bias, never hide it.
+
+### Beyond Milestone 4
+
+- A PIT-dated fundamentals source to unlock value/quality factors without
+  look-ahead.
 - Fundamental and statistical risk models.
 - Mean-variance portfolio optimization with turnover and transaction-cost terms.
 - Live factor-decay and regime monitoring with automated alerting.

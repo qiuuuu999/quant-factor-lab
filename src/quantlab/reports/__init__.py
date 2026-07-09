@@ -12,10 +12,18 @@ from quantlab.reports.tearsheet import (
     plot_drawdown,
     plot_nav_comparison,
 )
+from quantlab.reports.factor_report import (
+    plot_decile_returns,
+    plot_factor_correlation_heatmap,
+    plot_ic_timeseries,
+)
 
 __all__ = [
     "plot_nav_comparison",
     "plot_drawdown",
     "metrics_table_png",
     "metrics_markdown",
+    "plot_ic_timeseries",
+    "plot_decile_returns",
+    "plot_factor_correlation_heatmap",
 ]
