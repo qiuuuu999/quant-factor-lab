@@ -24,6 +24,10 @@ from quantlab.reports.risk_report import (
     plot_exposure_profile,
     plot_risk_decomposition,
 )
+from quantlab.reports.monitor_report import (
+    plot_factor_health,
+    plot_regime_heatmap,
+)
 
 __all__ = [
     "plot_nav_comparison",
@@ -38,4 +42,6 @@ __all__ = [
     "plot_factor_correlation_heatmap",
     "plot_exposure_profile",
     "plot_risk_decomposition",
+    "plot_factor_health",
+    "plot_regime_heatmap",
 ]
