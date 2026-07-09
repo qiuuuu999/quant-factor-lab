@@ -18,7 +18,7 @@ dependencies = [
     "scipy",
     "matplotlib",
     "yfinance",
-    "pyarrow",
+    "pyarrow>=19.0.1",  # 19.0.0 has a Parquet read regression ("Repetition level histogram size mismatch")
     "pydantic",
     "requests",
     "beautifulsoup4",
