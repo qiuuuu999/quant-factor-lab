@@ -7,9 +7,12 @@ distribution.
 """
 
 from quantlab.reports.tearsheet import (
+    metrics_comparison_markdown,
+    metrics_comparison_table_png,
     metrics_markdown,
     metrics_table_png,
     plot_drawdown,
+    plot_multi_nav,
     plot_nav_comparison,
 )
 from quantlab.reports.factor_report import (
@@ -27,6 +30,9 @@ __all__ = [
     "plot_drawdown",
     "metrics_table_png",
     "metrics_markdown",
+    "plot_multi_nav",
+    "metrics_comparison_table_png",
+    "metrics_comparison_markdown",
     "plot_ic_timeseries",
     "plot_decile_returns",
     "plot_factor_correlation_heatmap",

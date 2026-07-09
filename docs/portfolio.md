@@ -194,6 +194,36 @@ monthly rebalance) and builds target weights three ways at every rebalance:
 All three run through the identical `run_backtest` execution assumptions
 (decide on month-end close, fill at next-session open, defer halted opens,
 default cost model) so any difference in the resulting tearsheet is
-attributable purely to the weighting scheme, not to execution mechanics. See
-`reports/portfolio_comparison/summary.md` for the resulting NAV comparison,
-Sharpe, max drawdown, and annualized turnover across the three.
+attributable purely to the weighting scheme, not to execution mechanics.
+
+### Results (2015-2025)
+
+| Metric | Equal Weight | Mean-Variance | Risk Parity |
+| --- | --- | --- | --- |
+| CAGR | 10.16% | 9.51% | 9.26% |
+| Annual Volatility | 19.48% | 21.25% | 18.45% |
+| Sharpe Ratio | 0.59 | 0.53 | 0.57 |
+| Max Drawdown | -37.73% | -37.31% | -37.11% |
+| Calmar Ratio | 0.27 | 0.25 | 0.25 |
+| Annual Turnover | 5.48x | 6.27x | 6.20x |
+
+See `reports/portfolio_comparison/` for the full comparison table (incl.
+benchmark-relative stats) and equity-curve chart.
+
+**Equal weight wins this sample, on both CAGR and Sharpe.** Worth stating
+plainly rather than papering over: the Ledoit-Wolf covariance is estimated
+from only 6-24 trailing *monthly* observations across roughly 100 selected
+names, which is thin — even shrunk, the estimated correlation structure is
+noisy, and the optimizer is precisely engineered to lean into whatever
+structure it's given, including the noise. Mean-variance also trades the
+*most* of the three (6.27x/yr vs. 5.48x for equal weight), since its weights
+respond to both the momentum score *and* the reshuffling covariance estimate
+every month, and each unit of that extra turnover pays the cost model. Risk
+parity's lower realized volatility (18.45%, the lowest of the three) is the
+one place the risk-based construction clearly delivers on its objective — it
+just isn't enough to overcome equal weight's return edge here. None of this
+invalidates the method: it says a momentum sleeve concentrated in ~100
+large-cap names doesn't have much exploitable *covariance structure* for a
+risk-based optimizer to add value against, which is itself a useful, testable
+finding — and exactly why this comparison exists rather than assuming any
+one construction method is better by construction.
