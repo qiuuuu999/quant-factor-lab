@@ -1,0 +1,23 @@
+# Default backtest configuration for quant-factor-lab.
+#
+# Read by quantlab.backtest.costs.load_cost_model (the `costs:` block) and
+# available as plain defaults for the engine. Override per-run by constructing
+# CostModel / passing engine arguments directly.
+
+# Starting portfolio capital (currency units).
+initial_capital: 1_000_000
+
+# Rebalance calendar: last trading day of each period.
+#   month_end | quarter_end | week_end
+rebalance: month_end
+
+# Transaction-cost model (see quantlab.backtest.costs.CostModel).
+costs:
+  # Currency charged per share traded, each leg (e.g. 0.005 = half a cent/share).
+  commission_per_share: 0.005
+  # Slippage in basis points of absolute traded notional (5 bps = 0.05%).
+  slippage_bps: 5.0
+
+# Price field used for both marking-to-market and fills (adjusted close keeps
+# splits/dividends from creating spurious jumps).
+price_field: adj_close
