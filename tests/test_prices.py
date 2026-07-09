@@ -217,6 +217,21 @@ def test_get_prices_bad_field_raises(populated_store):
         get_prices(["AAA"], field="not_a_field", price_dir=populated_store)
 
 
+def test_get_prices_adj_open_rescales_raw_open(populated_store):
+    # Fixture builds Open = close - 1 and Adj Close = close * 0.99, so the
+    # adjustment factor is 0.99 and adj_open should be (close - 1) * 0.99.
+    raw = get_prices(["AAA"], price_dir=populated_store)
+    adj_open = get_prices(["AAA"], field="adj_open", price_dir=populated_store)["AAA"]
+    expected = raw.set_index("date")["open"] * (
+        raw.set_index("date")["adj_close"] / raw.set_index("date")["close"]
+    )
+    assert adj_open.reindex(expected.index).to_numpy() == pytest.approx(
+        expected.to_numpy()
+    )
+    # And the default long frame is unchanged (no derived columns leak in).
+    assert list(raw.columns) == ["date", "ticker", *P._OHLCV]
+
+
 # --------------------------------------------------------------------------- #
 # Universe integration
 # --------------------------------------------------------------------------- #

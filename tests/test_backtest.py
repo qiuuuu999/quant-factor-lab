@@ -226,6 +226,124 @@ def test_missing_mark_price_holds_last_value():
 
 
 # --------------------------------------------------------------------------- #
+# Execution timing — decide on t close, fill on t+1 open (no look-ahead)
+# --------------------------------------------------------------------------- #
+
+def test_fill_uses_next_day_open_not_signal_day_close():
+    """A signal keyed on t must execute at t+1's OPEN, not t's close.
+
+    Constructed so the three candidate prices are all distinct: t close = 100,
+    t+1 open = 130 (an overnight gap up), t+1 close = 125. A correct engine fills
+    at 130; a look-ahead engine that trades the signal-day close would fill at
+    100, and one that used the fill-day close would use 125.
+    """
+    dates = ["2020-01-31", "2020-02-03", "2020-02-04"]
+    mark = _wide({"AAA": [100.0, 125.0, 120.0]}, dates)      # adj_close (marking)
+    ex = _wide({"AAA": [110.0, 130.0, 140.0]}, dates)        # adj_open (fills)
+
+    res = run_backtest(
+        mark, {"2020-01-31": {"AAA": 1.0}},
+        initial_capital=1000.0, cost_model=CostModel.free(),
+        execution_prices=ex, execution_lag=1,
+    )
+
+    assert len(res.trades) == 1
+    tr = res.trades[0]
+    assert tr.date == pd.Timestamp("2020-02-03")     # t+1, not t
+    assert tr.price == pytest.approx(130.0)          # t+1 OPEN, not 100 or 125
+    # Day t is still all cash: the decision is not yet executed.
+    assert res.nav.iloc[0] == pytest.approx(1000.0)
+    assert res.positions_value.iloc[0] == pytest.approx(0.0)
+    # Shares sized against the t+1 open: 1000 / 130.
+    assert tr.shares == pytest.approx(1000.0 / 130.0)
+
+
+def test_execution_lag_without_separate_panel_shifts_fill_to_next_close():
+    """execution_lag alone defers the fill to t+1 using the marking panel."""
+    dates = ["2020-01-31", "2020-02-03"]
+    mark = _wide({"AAA": [100.0, 130.0]}, dates)
+    res = run_backtest(
+        mark, {"2020-01-31": {"AAA": 1.0}},
+        initial_capital=1000.0, cost_model=CostModel.free(),
+        execution_lag=1,
+    )
+    assert res.trades[0].date == pd.Timestamp("2020-02-03")
+    assert res.trades[0].price == pytest.approx(130.0)   # t+1 close (no exec panel)
+    assert res.nav.iloc[0] == pytest.approx(1000.0)      # cash on t
+
+
+def test_last_day_signal_is_dropped_when_lag_has_no_room():
+    """A decision on the final session cannot fill at t+1 and is dropped."""
+    dates = ["2020-01-31", "2020-02-03"]
+    mark = _wide({"AAA": [100.0, 130.0]}, dates)
+    res = run_backtest(
+        mark, {"2020-02-03": {"AAA": 1.0}},   # last session -> no t+1
+        initial_capital=1000.0, cost_model=CostModel.free(),
+        execution_lag=1,
+    )
+    assert res.trades == []
+    assert res.nav.iloc[-1] == pytest.approx(1000.0)
+
+
+# --------------------------------------------------------------------------- #
+# Halt handling at the open — defer (roll forward) vs. skip
+# --------------------------------------------------------------------------- #
+
+def test_halted_open_defers_to_next_available_open():
+    """With defer_halted, a name with no t+1 open rolls to the next open."""
+    dates = ["2020-01-31", "2020-02-03", "2020-02-04"]
+    mark = _wide({"AAA": [100.0, 100.0, 100.0]}, dates)
+    # No open on the intended fill day (t+1); it prints again on t+2 at 150.
+    ex = _wide({"AAA": [100.0, np.nan, 150.0]}, dates)
+
+    res = run_backtest(
+        mark, {"2020-01-31": {"AAA": 1.0}},
+        initial_capital=1000.0, cost_model=CostModel.free(),
+        execution_prices=ex, execution_lag=1, defer_halted=True,
+    )
+    assert len(res.trades) == 1
+    assert res.trades[0].date == pd.Timestamp("2020-02-04")   # rolled to t+2
+    assert res.trades[0].price == pytest.approx(150.0)
+    assert res.skipped == []
+
+
+def test_halted_open_without_defer_is_skipped():
+    """Without defer_halted the halted leg is skipped, not rolled forward."""
+    dates = ["2020-01-31", "2020-02-03", "2020-02-04"]
+    mark = _wide({"AAA": [100.0, 100.0, 100.0]}, dates)
+    ex = _wide({"AAA": [100.0, np.nan, 150.0]}, dates)
+
+    res = run_backtest(
+        mark, {"2020-01-31": {"AAA": 1.0}},
+        initial_capital=1000.0, cost_model=CostModel.free(),
+        execution_prices=ex, execution_lag=1, defer_halted=False,
+    )
+    assert res.trades == []
+    assert [s.ticker for s in res.skipped] == ["AAA"]
+    assert res.nav.iloc[-1] == pytest.approx(1000.0)   # never invested
+
+
+def test_deferred_leg_superseded_by_next_rebalance_is_recorded_skipped():
+    """A deferred leg that never fills before the next rebalance is skipped."""
+    dates = ["2020-01-31", "2020-02-03", "2020-02-28", "2020-03-02"]
+    mark = _wide({"AAA": [100.0, 100.0, 100.0, 100.0],
+                  "BBB": [100.0, 100.0, 100.0, 100.0]}, dates)
+    # AAA never prints an open after its first buy attempt; BBB always does.
+    ex = _wide({"AAA": [100.0, np.nan, np.nan, np.nan],
+                "BBB": [100.0, 100.0, 100.0, 100.0]}, dates)
+    res = run_backtest(
+        mark,
+        {"2020-01-31": {"AAA": 1.0},        # fills at t+1 = 02-03, but AAA halted
+         "2020-02-28": {"BBB": 1.0}},       # next rebalance supersedes pending AAA
+        initial_capital=1000.0, cost_model=CostModel.free(),
+        execution_prices=ex, execution_lag=1, defer_halted=True,
+    )
+    # AAA never fills; BBB does (at 03-02 open).
+    assert [t.ticker for t in res.trades] == ["BBB"]
+    assert any(s.ticker == "AAA" for s in res.skipped)
+
+
+# --------------------------------------------------------------------------- #
 # Rebalance calendar utility
 # --------------------------------------------------------------------------- #
 

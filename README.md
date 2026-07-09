@@ -142,7 +142,7 @@ quant-factor-lab/
 │   └── reports/         # automated reporting
 ├── tests/               # test suite
 ├── notebooks/           # research notebooks
-├── docs/                # documentation
+├── docs/                # documentation (factors.md, execution_timing.md)
 └── configs/             # configuration files
 ```
 

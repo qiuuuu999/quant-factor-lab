@@ -58,6 +58,15 @@ _FIELD_MAP = {
 }
 _OHLCV = ["open", "high", "low", "close", "adj_close", "volume"]
 
+#: Fields that are *derived* on read from the stored raw OHLC + adj_close.
+#: yfinance is fetched with ``auto_adjust=False``, so ``open``/``high``/``low``/
+#: ``close`` are raw (split/dividend-*unadjusted*) prices while ``adj_close`` is
+#: fully adjusted. The daily adjustment factor is ``adj_close / close``; applying
+#: it to a raw field yields its adjusted counterpart on the same total-return
+#: basis as ``adj_close``. ``adj_open`` in particular is what a backtest should
+#: fill against when it executes at the next session's open.
+_DERIVED_ADJ = {"adj_open": "open", "adj_high": "high", "adj_low": "low"}
+
 #: A single-day absolute return above this flags a bar for manual review.
 DEFAULT_JUMP_THRESHOLD = 0.5
 
@@ -419,8 +428,11 @@ def get_prices(
         Optional inclusive date bounds.
     field:
         If given (e.g. ``"adj_close"``), return a *wide* frame indexed by date
-        with one column per ticker. Otherwise return a tidy *long* frame with
-        columns ``[date, ticker, open, high, low, close, adj_close, volume]``.
+        with one column per ticker. Besides the eight stored columns this also
+        accepts the derived adjusted fields ``adj_open`` / ``adj_high`` /
+        ``adj_low`` (raw price rescaled by ``adj_close / close``). Otherwise
+        return a tidy *long* frame with columns
+        ``[date, ticker, open, high, low, close, adj_close, volume]``.
 
     Missing tickers (no file in the store) are skipped with a warning.
     """
@@ -443,6 +455,13 @@ def get_prices(
         d = pd.read_parquet(path)
         d["date"] = pd.to_datetime(d["date"])
         d["ticker"] = label  # relabel to the requested (historical) symbol
+        if field in _DERIVED_ADJ:
+            # Rescale the raw field onto the adjusted-close basis. Guard against
+            # a zero/NaN raw close (leaves the derived value NaN => treated as a
+            # halt downstream rather than a spurious fill).
+            raw = _DERIVED_ADJ[field]
+            factor = d["adj_close"] / d["close"].replace(0.0, pd.NA)
+            d[field] = d[raw] * factor
         if lo is not None:
             d = d[d["date"] >= lo]
         if hi is not None:
@@ -460,7 +479,7 @@ def get_prices(
 
     if field not in long.columns:
         raise ValueError(
-            f"unknown field {field!r}; choose from {_OHLCV}"
+            f"unknown field {field!r}; choose from {_OHLCV + list(_DERIVED_ADJ)}"
         )
     wide = long.pivot(index="date", columns="ticker", values=field).sort_index()
     wide.columns.name = None

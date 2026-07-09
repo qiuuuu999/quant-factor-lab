@@ -7,6 +7,10 @@ Strategy
 * Signal: 12-1 price momentum (:class:`quantlab.factors.MomentumFactor`).
 * Selection: rank into deciles each month; hold the top 20% (deciles 9-10).
 * Weighting: equal weight, rebalanced on the last trading day of each month.
+* Execution: the signal is formed on the month-end **close**; trades fill at the
+  **next session's open** (``execution_lag=1`` against an adjusted-open panel), so
+  no order is filled on a price that helped form its own signal. A name with no
+  open that morning rolls forward to the next available open (``defer_halted``).
 * Costs: default config (per-share commission + bps slippage).
 * Benchmark: SPY over the same window.
 
@@ -81,7 +85,8 @@ def main() -> None:
     # the engine), both labelled with the requested historical symbols.
     long_prices = get_prices(union, DATA_START, END)
     price_tickers = set(long_prices["ticker"].unique())
-    wide = get_prices(union, START, END, field="adj_close")
+    wide = get_prices(union, START, END, field="adj_close")   # marking panel
+    wide_open = get_prices(union, START, END, field="adj_open")  # fill panel
     print(f"Universe union: {len(union)} symbols; priced: {len(price_tickers)}; "
           f"panel {wide.shape[0]} days x {wide.shape[1]} names", flush=True)
 
@@ -102,6 +107,10 @@ def main() -> None:
         initial_capital=INITIAL_CAPITAL,
         cost_model=cost_model,
         price_field="adj_close",
+        execution_prices=wide_open,      # fill at the adjusted open ...
+        execution_price_field="adj_open",
+        execution_lag=1,                 # ... of the session *after* the signal
+        defer_halted=True,               # roll a halted-open leg to the next open
         start=START, end=END,
     )
 
@@ -129,6 +138,8 @@ def main() -> None:
         f"- **Universe**: point-in-time S&P 500 ({len(price_tickers)} priced names)\n"
         f"- **Signal**: 12-1 momentum, top 20% (deciles 9-10), equal-weight\n"
         f"- **Rebalance**: monthly ({len(weights)} rebalances)\n"
+        f"- **Execution**: signal on month-end close, fill at next-session open "
+        f"(t+1), halted opens rolled forward\n"
         f"- **Costs**: {cost_model.commission_per_share}/share commission, "
         f"{cost_model.slippage_bps} bps slippage\n"
         f"- **Window**: {result.nav.index[0].date()} .. {result.nav.index[-1].date()}\n"
