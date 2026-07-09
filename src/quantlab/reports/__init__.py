@@ -17,6 +17,10 @@ from quantlab.reports.factor_report import (
     plot_factor_correlation_heatmap,
     plot_ic_timeseries,
 )
+from quantlab.reports.risk_report import (
+    plot_exposure_profile,
+    plot_risk_decomposition,
+)
 
 __all__ = [
     "plot_nav_comparison",
@@ -26,4 +30,6 @@ __all__ = [
     "plot_ic_timeseries",
     "plot_decile_returns",
     "plot_factor_correlation_heatmap",
+    "plot_exposure_profile",
+    "plot_risk_decomposition",
 ]
