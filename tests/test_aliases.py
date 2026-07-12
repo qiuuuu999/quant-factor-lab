@@ -5,7 +5,6 @@ from __future__ import annotations
 from datetime import date, datetime, timezone
 
 import pandas as pd
-import pytest
 
 from quantlab.data import prices as P
 from quantlab.data.aliases import (

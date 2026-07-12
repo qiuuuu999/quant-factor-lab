@@ -118,7 +118,6 @@ def main() -> None:
           flush=True)
     model = FactorRiskModel().fit(exposures_by_date, forward_returns)
     factor_cov = model.factor_covariance()          # T=~130 >> K=4: sample is fine
-    specific_var = model.specific_variance()
 
     # Full-history time series of the strategy's own factor exposure (context).
     exposure_ts = pd.DataFrame({

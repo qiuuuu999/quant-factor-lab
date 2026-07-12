@@ -183,7 +183,7 @@ def test_build_panel_forward_returns_match_price_ratios():
     b = [50.0, 55.0, 60.5, 66.55]
     rows = []
     for t, series in {"A": a, "B": b}.items():
-        for d, px in zip(dates, series):
+        for d, px in zip(dates, series, strict=True):
             rows.append({"date": d, "ticker": t, "adj_close": px,
                          "close": px, "volume": 1_000})
     long_prices = pd.DataFrame(rows)

@@ -485,7 +485,7 @@ def load_universe(
         try:
             cached = UniverseData.from_parquet(cache_dir)
         except Exception as exc:  # corrupt cache — treat as cold
-            warnings.warn(f"Ignoring unreadable universe cache: {exc}")
+            warnings.warn(f"Ignoring unreadable universe cache: {exc}", stacklevel=2)
 
     if cached is not None and not force_refresh and not cached.is_stale(max_age):
         return cached
@@ -498,7 +498,8 @@ def load_universe(
         if cached is not None:
             warnings.warn(
                 f"Universe refresh failed ({exc}); using stale cache "
-                f"from {cached.fetched_at.isoformat()}."
+                f"from {cached.fetched_at.isoformat()}.",
+                stacklevel=2,
             )
             return cached
         raise

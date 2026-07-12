@@ -24,7 +24,6 @@ record with tidy ``to_series`` / ``to_frame`` / ``summary`` views.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
 
 import numpy as np
 import pandas as pd

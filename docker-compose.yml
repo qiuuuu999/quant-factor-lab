@@ -1,0 +1,9 @@
+services:
+  quant-factor-lab:
+    build: .
+    # Persist the downloaded price/universe store and every generated report
+    # on the host, so re-running `docker compose up` after the first full run
+    # reuses cached prices instead of re-downloading ~700 tickers from yfinance.
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports

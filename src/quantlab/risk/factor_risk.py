@@ -36,7 +36,7 @@ variance -> quadratic-form decomposition -- are the same.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Callable, Iterable, Sequence
 
 import numpy as np

@@ -10,6 +10,8 @@ against the textbook equal-risk-contribution property.
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -147,7 +149,7 @@ def test_turnover_penalty_monotonically_shrinks_realized_turnover():
         turnovers.append(result.turnover)
 
     # Non-increasing as lambda grows (allow tiny numerical slack).
-    for prev_t, next_t in zip(turnovers, turnovers[1:]):
+    for prev_t, next_t in pairwise(turnovers):
         assert next_t <= prev_t + 1e-6
     # And it should actually bind somewhere: the largest lambda trades much
     # less than the unconstrained (lambda=0) solve.

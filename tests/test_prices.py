@@ -16,7 +16,6 @@ import pytest
 from quantlab.data import prices as P
 from quantlab.data.prices import (
     QualityReport,
-    TickerQuality,
     download_prices,
     get_prices,
     universe_symbols,

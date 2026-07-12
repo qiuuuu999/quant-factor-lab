@@ -37,7 +37,6 @@ factor values are fed in directly.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
 from typing import Callable, Iterable, Sequence
 
 import numpy as np

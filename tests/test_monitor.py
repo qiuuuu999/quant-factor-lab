@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from quantlab.monitor.decay import (
     cusum_test,
@@ -145,7 +144,7 @@ def test_classify_regime_recovers_engineered_segments():
 
     # Check the tail of each segment (well past the 200-day trend warm-up so
     # the moving average has caught up with that segment's own drift).
-    for label, (lo, hi) in bounds.items():
+    for label, (_lo, hi) in bounds.items():
         window_dates = prices.index[hi - 50 : hi]
         labels = regime.reindex(window_dates).dropna()
         assert len(labels) > 0

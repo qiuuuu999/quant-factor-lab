@@ -151,7 +151,9 @@ def cusum_test(x: pd.Series, *, confidence: float = 0.95) -> CusumResult:
     mean_before = float(before.mean()) if len(before) else np.nan
     mean_after = float(after.mean()) if len(after) else np.nan
 
-    return CusumResult(path, change_point, statistic, critical, confidence, triggered, mean_before, mean_after)
+    return CusumResult(
+        path, change_point, statistic, critical, confidence, triggered, mean_before, mean_after,
+    )
 
 
 @dataclass

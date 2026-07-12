@@ -271,7 +271,7 @@ def test_build_static_multifactor_weights_selects_top_bucket_equal_weight():
         exposures_by_date, dates, n_buckets=4, top_buckets=(4,)
     )
     assert set(weights.keys()) == set(dates)
-    for dt, w in weights.items():
+    for w in weights.values():
         assert len(w) == 5   # top quartile of 20 names
         assert sum(w.values()) == pytest.approx(1.0)
         assert all(v == pytest.approx(1.0 / 5) for v in w.values())
@@ -302,8 +302,8 @@ def test_build_regime_adaptive_weights_end_to_end_wires_regime_and_ic():
     # In a low_vol_up rebalance late enough to have accumulated history,
     # 'mom' should dominate the combination weight; in high_vol_down, 'vol'
     # should dominate -- confirms the regime label actually drives the mix.
-    late_low_vol_up = [d for d, r in zip(dates, regimes) if r == "low_vol_up"][-1]
-    late_high_vol_down = [d for d, r in zip(dates, regimes) if r == "high_vol_down"][-1]
+    late_low_vol_up = [d for d, r in zip(dates, regimes, strict=True) if r == "low_vol_up"][-1]
+    late_high_vol_down = [d for d, r in zip(dates, regimes, strict=True) if r == "high_vol_down"][-1]
     assert diagnostics.loc[late_low_vol_up, "mom"] > diagnostics.loc[late_low_vol_up, "vol"]
     assert diagnostics.loc[late_high_vol_down, "vol"] > diagnostics.loc[late_high_vol_down, "mom"]
 
